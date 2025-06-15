@@ -18,89 +18,149 @@ public_users.post("/register", (req, res) => {
     return res.status(200).json({ message: "User registered successfully" });
 });
 
+
 // Get the book list available in the shop
 public_users.get('/', async function (req, res) {
     try {
-      const getBooks = () => {
-        return new Promise((resolve, reject) => {
-          resolve(books);
-        });
-      };
-      const result = await getBooks();
-      return res.status(200).json(result);
+      const data = await promiseCb((resolve) => {
+        const booksList = Object.values(books);
+        resolve(booksList);
+      }, 3000);
+      return res.status(200).json(data);
     } catch (err) {
-      return res.status(500).json({ error: "Unable to fetch books" });
+      return res.status(500).json({ message: "Internal server error." });
     }
+});
+
+// TASK 10 - Get teh book list available in the shop using Promises
+public_users.get('/books', function (req, res) {
+    const get_books = new Promise((resolve, reject) => {
+        resolve(res.send(JSON.stringify({books}, null, 4)));
+    });
 });
   
 
 // Get book details based on ISBN
 public_users.get('/isbn/:isbn', async function (req, res) {
-    const isbn = req.params.isbn;
     try {
-      const getBookByISBN = (isbn) => {
-        return new Promise((resolve, reject) => {
-          if (books[isbn]) {
-            resolve(books[isbn]);
-          } else {
-            reject("Book not found");
-          }
-        });
-      };
-  
-      const book = await getBookByISBN(isbn);
-      return res.status(200).json(book);
+      const data = await promiseCb((resolve) => {
+        const isbn = req.params.isbn + "";
+        const book = books[isbn];
+        resolve(book);resolve
+      }, 3000);
+      if(data){
+        return res.status(200).json(data);
+      }
+      return res.status(404).json({ message: "Invalid ISBN" });
     } catch (error) {
-      return res.status(404).json({ message: error });
+      return res.status(404).json({ message: "Internal server error." });
     }
+});
+
+public_users.get('books/isbn/:isbn', function (req, res) {
+    const get_books_isbn = new Promise((resolve, reject)  => {
+        const isbn = req.params.isbn;
+        if (req.params.isbn <= 10) {
+            resolve(res.send(books[isbn]));
+        } else {
+            reject(res.send("ISBN not found"));
+        }
+    });
+    get_books_isbn.then(function (){
+        console.log("Promise for task 11 is resolved");
+    }).catch(function(){
+        console.log("ISBN not found");
+    });
 });
   
   
 // Get book details based on author
-public_users.get('/author/:author', function (req, res) {
-    const author = req.params.author;
-  
-    const getBooksByAuthor = (author) => {
-      return new Promise((resolve, reject) => {
-        const booksByAuthor = Object.values(books).filter(
-          (book) => book.author.toLowerCase() === author.toLowerCase()
-        );
-        if (booksByAuthor.length > 0) {
-          resolve(booksByAuthor);
-        } else {
-          reject("No books found by that author");
+public_users.get('/author/:author', async function (req, res) {
+    try {
+        const data = await promiseCb((resolve) => {
+            const author = (req.params.author + "").toLocaleLowerCase();
+            const booksList = Object.values(books);
+            const newBooks = booksList.filter((book) => {
+                book.author.toLocaleLowerCase().match(author)
+            });
+            resolve(newBooks);
+        }, 3000);
+        if (Array.isArray(data) && data.length) {
+            return res.status(200).json(data);
         }
-      });
-    };
-  
-    getBooksByAuthor(author)
-      .then((result) => res.status(200).json(result))
-      .catch((error) => res.status(404).json({ message: error }));
+        return res.status(404).json({ message: "Invalid author" });
+    }catch (error) {
+        return res.status(500).json({ message: "Internal server error." })
+    }
+});
+
+// TASK 12 - Get book details based on author
+public_users.get('/books/author/:author', function (req, res) {
+    const get_books_author = new Promise((resolve, reject) => {
+        let booksbyauthor = [];
+        let isbns = Object.keys(books);
+        isbns.forEach((isbn) => {
+            if(books[isbn]["author"] === req.params.author) {
+                booksbyauthor.push({
+                    "isbn":isbn,
+                    "title":books[isbn]["title"],
+                    "reviews":books[isbn]["reviews"]
+                });
+                resolve(res.send(JSON.stringify({booksbyauthor}, null, 4)));
+            }
+        });
+        reject(res.send("the mentioned author does not exist"));
+    });
+    get_books_author.then(function(){
+        console.log("Promise is resolved");
+    }).catch(function () {
+        console.log("The mentioned author does not exist");
+    });
 });
   
 
 // Get all books based on title
 public_users.get('/title/:title', async function (req, res) {
-    const title = req.params.title;
     try {
-      const getBooksByTitle = (title) => {
-        return new Promise((resolve, reject) => {
-          const results = Object.values(books).filter(
-            (book) => book.title.toLowerCase() === title.toLowerCase()
-          );
-          if (results.length > 0) {
-            resolve(results);
-          } else {
-            reject("No book found with that title");
-          }
-        });
-      };
-  
-      const booksByTitle = await getBooksByTitle(title);
-      return res.status(200).json(booksByTitle);
+      const data = await promiseCb((resolve) => {
+            const title = (req.params.title + "").toLocaleLowerCase();
+            const booksList = Object.values(books);
+            const newBooks = booksList.filter((book) => {
+                book.title.toLocaleLowerCase().match(title)
+            });
+        resolve(newBooks);
+      }, 3000);
+      if (Array.isArray(data) && data.length) {
+        return res.status(200).json(data);
+      }
+      return res.status(404).json({message: "Invalid title"});
     } catch (error) {
-      return res.status(404).json({ message: error });
+      return res.status(500).json({ message: "Internal server error." });
     }
+});
+
+// TASK 13 - Get all books based on title
+public_users.get('/books/title/:title', function (req, res) {
+    const get_books_title = new Promise((resolve, reject) => {
+        let booksbytitle = [];
+        let isbns = Object.keys(books);
+        isbns.forEach((isbn) => {
+            if(books[isbn]["title"] === req.params.title) {
+                booksbytitle.push({
+                    "isbn": isbn,
+                    "author": books[isbn]["author"],
+                    "reviews":books[isbn]["reviews"]
+                });
+                resolve(res.send(JSON.stringify({booksbytitle}, null, 4)));
+            }
+        });
+        reject(res.send("The mentioned title does not exist"));
+    });
+    get_books_title.then(function(){
+        console.log("Promise is resolved");
+    }).catch(function () {
+        console.log("The mentioned book doesnt exist");
+    });
 });
   
 
